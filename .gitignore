@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+data/weather.db
+data/missions/
+data/windy/*.json
+*.egg-info/
+dist/
+build/
+.venv/
+venv/

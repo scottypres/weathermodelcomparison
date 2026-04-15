@@ -1,0 +1,262 @@
+:root {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-card: #1c2333;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --accent-blue: #2196F3;
+    --accent-green: #4CAF50;
+    --accent-orange: #FF5722;
+    --accent-purple: #9C27B0;
+    --border-color: #30363d;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.container { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+
+/* Navigation */
+nav {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+nav .container { display: flex; align-items: center; gap: 30px; }
+nav .logo {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+nav a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+}
+nav a:hover, nav a.active { color: var(--text-primary); }
+
+/* Cards */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 20px;
+}
+.card h2 {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+.card h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+}
+
+/* Grid layouts */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+@media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
+
+/* Page header */
+.page-header {
+    padding: 30px 0 20px;
+}
+.page-header h1 {
+    font-size: 1.6rem;
+    margin-bottom: 8px;
+}
+.page-header p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+/* Stats row */
+.stats { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+.stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px 24px;
+    min-width: 150px;
+}
+.stat .label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+.stat .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+.stat .value.blue { color: var(--accent-blue); }
+.stat .value.green { color: var(--accent-green); }
+.stat .value.orange { color: var(--accent-orange); }
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+.btn-primary {
+    background: var(--accent-blue);
+    color: white;
+}
+.btn-primary:hover { background: #1976D2; }
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+.btn-secondary:hover { border-color: var(--accent-blue); }
+
+/* Forms */
+.form-group { margin-bottom: 16px; }
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+/* Flash messages */
+.flash {
+    padding: 12px 20px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+}
+.flash.success { background: #1b5e20; border: 1px solid #2e7d32; }
+.flash.error { background: #b71c1c; border: 1px solid #c62828; }
+.flash.warning { background: #e65100; border: 1px solid #ef6c00; }
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+tr:hover { background: rgba(255,255,255,0.03); }
+
+/* Score highlights */
+.score-best { color: var(--accent-green); font-weight: 700; }
+.score-worst { color: var(--accent-orange); }
+
+/* Mission list */
+.mission-list a {
+    display: block;
+    padding: 14px;
+    margin-bottom: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: border-color 0.2s;
+}
+.mission-list a:hover { border-color: var(--accent-blue); }
+.mission-list .meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* Chart container */
+.chart-container { margin-bottom: 20px; }
+
+/* Windy form specific */
+.altitude-group {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+.altitude-group h4 {
+    font-size: 0.85rem;
+    color: var(--accent-blue);
+    margin-bottom: 10px;
+}
+.inline-fields {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.inline-fields .form-group {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* Setup instructions */
+.setup-box {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 24px;
+}
+.setup-box code {
+    background: var(--bg-primary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+.setup-box pre {
+    background: var(--bg-primary);
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 12px 0;
+    font-size: 0.85rem;
+}
+.setup-box ol { padding-left: 24px; }
+.setup-box li { margin-bottom: 10px; color: var(--text-secondary); }

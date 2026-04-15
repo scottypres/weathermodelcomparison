@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Tempest Station Comparison{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Tempest Station vs Forecast Models</h1>
+    <p>Ground-level comparison of Tempest weather station observations against model forecasts (last 48 hours)</p>
+</div>
+
+{% if has_data %}
+<!-- Time Series Charts -->
+<div class="card">
+    <h2>Temperature: Observed vs Forecast</h2>
+    <div class="chart-container" id="temp-ts"></div>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <h2>Wind Speed: Observed vs Forecast</h2>
+        <div class="chart-container" id="wind-ts"></div>
+    </div>
+    <div class="card">
+        <h2>Humidity: Observed vs Forecast</h2>
+        <div class="chart-container" id="humidity-ts"></div>
+    </div>
+</div>
+
+<!-- Error/Delta Charts -->
+<div class="grid-2">
+    <div class="card">
+        <h2>Temperature Forecast Error</h2>
+        <div class="chart-container" id="temp-delta"></div>
+    </div>
+    <div class="card">
+        <h2>Wind Speed Forecast Error</h2>
+        <div class="chart-container" id="wind-delta"></div>
+    </div>
+</div>
+
+<!-- Accuracy Scores -->
+{% if scores %}
+<div class="card">
+    <h2>Model Accuracy Scores (lower = better)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Model</th>
+                <th>Hours</th>
+                <th>Temp MAE (F)</th>
+                <th>Temp Bias</th>
+                <th>Wind MAE (mph)</th>
+                <th>Wind Bias</th>
+                <th>Humidity MAE (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in scores %}
+            <tr>
+                <td><strong>{{ s.model }}</strong></td>
+                <td>{{ s.get('n_hours', 0) }}</td>
+                <td>{{ "%.2f"|format(s.get('temp_mae', 0)) }}</td>
+                <td>{{ "%+.2f"|format(s.get('temp_bias', 0)) }}</td>
+                <td>{{ "%.2f"|format(s.get('wind_mae', 0)) }}</td>
+                <td>{{ "%+.2f"|format(s.get('wind_bias', 0)) }}</td>
+                <td>{{ "%.2f"|format(s.get('humidity_mae', 0)) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 10px;">
+        MAE = Mean Absolute Error. Bias = mean(observed - forecast): positive means model under-predicts.
+    </p>
+</div>
+{% endif %}
+
+{% else %}
+<div class="card">
+    <p style="color: var(--text-secondary);">
+        No station data available. Make sure your Tempest API is configured and the station is reporting.
+    </p>
+    <a href="{{ url_for('station_view') }}" class="btn btn-secondary" style="margin-top: 12px;">Check Setup</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if has_data %}
+<script>
+(function() {
+    var charts = {
+        'temp-ts': {{ temp_ts|safe }},
+        'wind-ts': {{ wind_ts|safe }},
+        'humidity-ts': {{ humidity_ts|safe }},
+        'temp-delta': {{ temp_delta|safe }},
+        'wind-delta': {{ wind_delta|safe }},
+    };
+    for (var id in charts) {
+        var fig = charts[id];
+        Plotly.newPlot(id, fig.data, fig.layout, {responsive: true});
+    }
+})();
+</script>
+{% endif %}
+{% endblock %}

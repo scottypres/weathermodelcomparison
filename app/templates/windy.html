@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Windy Forecast Data{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Windy Forecast Data Entry</h1>
+    <p>Manually enter data from Windy screenshots to include in comparisons.
+       Upload the screenshot for reference, then enter the values below.</p>
+</div>
+
+<div class="card">
+    <h2>Enter Windy Data</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="date">Date</label>
+                <input type="date" name="date" id="date" required>
+            </div>
+            <div class="form-group">
+                <label for="hours">Hours (comma-separated, local time)</label>
+                <input type="text" name="hours" id="hours" placeholder="11, 12, 13, 14, 15, 16, 17, 18, 19, 20" required>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="screenshot">Screenshot (optional)</label>
+            <input type="file" name="screenshot" id="screenshot" accept="image/*">
+        </div>
+
+        <hr style="border-color: var(--border-color); margin: 20px 0;">
+
+        <!-- Surface / Ground Level (33ft) -->
+        <div class="altitude-group">
+            <h4>Surface / Ground Level (~33ft) &mdash; Bottom rows of Windy screenshot</h4>
+            <div class="inline-fields">
+                <div class="form-group">
+                    <label>Wind Speed (mph), comma-separated</label>
+                    <input type="text" name="surface_wind_speed_mph" placeholder="12, 11, 11, 11, ...">
+                </div>
+                <div class="form-group">
+                    <label>Wind Gusts (mph*), comma-separated</label>
+                    <input type="text" name="surface_wind_gust_mph" placeholder="23, 23, 23, 23, ...">
+                </div>
+            </div>
+            <div class="inline-fields">
+                <div class="form-group">
+                    <label>Temperature (F), comma-separated</label>
+                    <input type="text" name="surface_temp_f" placeholder="77, 79, 80, 81, ...">
+                </div>
+                <div class="form-group">
+                    <label>Dewpoint (F), comma-separated</label>
+                    <input type="text" name="surface_dewpoint_f" placeholder="57, 57, 57, 57, ...">
+                </div>
+                <div class="form-group">
+                    <label>Humidity (%), comma-separated</label>
+                    <input type="text" name="surface_humidity_pct" placeholder="48, 46, 44, 43, ...">
+                </div>
+            </div>
+        </div>
+
+        <!-- Altitude levels -->
+        {% for alt in [364, 1773, 2500, 3243, 4781, 6394] %}
+        <div class="altitude-group">
+            <h4>{{ alt }}ft Altitude Level</h4>
+            <div class="inline-fields">
+                <div class="form-group">
+                    <label>Wind Speed (mph), comma-separated</label>
+                    <input type="text" name="alt{{ alt }}_wind_speed_mph" placeholder="e.g., 13.8, 15.2, 14.9, ...">
+                </div>
+                <div class="form-group">
+                    <label>Wind Direction (arrows/letters), comma-separated</label>
+                    <input type="text" name="alt{{ alt }}_wind_dir" placeholder="e.g., E, E, E, E, ...">
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Save Windy Data</button>
+    </form>
+</div>
+
+<!-- Previous Entries -->
+{% if entries %}
+<div class="card">
+    <h2>Saved Entries</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Hours</th>
+                <th>Altitudes</th>
+                <th>Screenshot</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entries %}
+            <tr>
+                <td>{{ e.get('date', 'N/A') }}</td>
+                <td>{{ e.get('hours', [])|join(', ') }}</td>
+                <td>{{ e.get('altitudes', {})|list|join(', ') }}</td>
+                <td>{{ 'Yes' if e.get('screenshot') else 'No' }}</td>
+                <td>
+                    <a href="{{ url_for('windy_compare', date=e.get('date', '')) }}" class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.8rem;">Compare</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

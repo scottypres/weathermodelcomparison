@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Weather Model Comparison{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Weather Model Comparison</h1>
+    <p>Compare forecast models against real-world observations from your drone and Tempest weather station</p>
+</div>
+
+<div class="grid-3">
+    <!-- Drone Missions Card -->
+    <div class="card">
+        <h2>Drone Missions</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px;">
+            Upload drone flight CSVs to compare sensor readings against forecast model predictions at altitude.
+        </p>
+        <a href="{{ url_for('drone_upload') }}" class="btn btn-primary">Upload Mission</a>
+
+        {% if missions %}
+        <div class="mission-list" style="margin-top: 16px;">
+            {% for m in missions[:5] %}
+            <a href="{{ url_for('drone_analyze', mission_id=m.id) }}">
+                <strong>{{ m.mission_name }}</strong>
+                <div class="meta">
+                    {{ m.filename }} &middot;
+                    Max {{ m.max_altitude_ft|round|int }}ft &middot;
+                    {{ m.total_readings }} readings
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color: var(--text-secondary); margin-top: 12px; font-size: 0.85rem;">
+            No missions uploaded yet.
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Tempest Station Card -->
+    <div class="card">
+        <h2>Tempest Weather Station</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px;">
+            Daily comparison of ground-level forecasts vs actual Tempest station observations.
+        </p>
+        {% if tempest_configured %}
+            <a href="{{ url_for('station_view') }}" class="btn btn-primary">View Comparison</a>
+            <p style="color: var(--accent-green); margin-top: 12px; font-size: 0.85rem;">
+                Station connected
+            </p>
+        {% else %}
+            <a href="{{ url_for('station_view') }}" class="btn btn-secondary">Setup Required</a>
+            <p style="color: var(--accent-orange); margin-top: 12px; font-size: 0.85rem;">
+                Configure your Tempest API token to enable station comparison.
+            </p>
+        {% endif %}
+    </div>
+
+    <!-- Windy Data Card -->
+    <div class="card">
+        <h2>Windy Forecast Data</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px;">
+            Manually enter Windy forecast data from screenshots to include in comparisons.
+        </p>
+        <a href="{{ url_for('windy_view') }}" class="btn btn-primary">Enter Windy Data</a>
+    </div>
+</div>
+
+<!-- How It Works -->
+<div class="card">
+    <h2>How It Works</h2>
+    <div class="grid-2">
+        <div>
+            <h3>Forecast Models (via Open-Meteo)</h3>
+            <table>
+                <tr><th>Model</th><th>Resolution</th><th>Source</th></tr>
+                <tr><td>ECMWF IFS</td><td>~9 km</td><td>European Centre</td></tr>
+                <tr><td>GFS Seamless</td><td>~13 km</td><td>NOAA (US)</td></tr>
+                <tr><td>GFS HRRR</td><td>~3 km</td><td>NOAA High-Res</td></tr>
+                <tr><td>ICON</td><td>~13 km</td><td>DWD (Germany)</td></tr>
+                <tr><td>GEM</td><td>~15 km</td><td>CMC (Canada)</td></tr>
+            </table>
+        </div>
+        <div>
+            <h3>Observation Sources</h3>
+            <table>
+                <tr><th>Source</th><th>Type</th><th>Frequency</th></tr>
+                <tr><td>Weather Drone</td><td>0-1500ft profile</td><td>Per mission</td></tr>
+                <tr><td>Tempest Station</td><td>Surface (ground)</td><td>Continuous</td></tr>
+                <tr><td>Windy</td><td>Multi-altitude</td><td>Manual entry</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

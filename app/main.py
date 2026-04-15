@@ -1,0 +1,283 @@
+"""Flask web application for weather model comparison."""
+
+import os
+import json
+import traceback
+from datetime import datetime, timezone
+
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from werkzeug.utils import secure_filename
+import pandas as pd
+
+from app.config import MISSIONS_DIR, WINDY_DIR, LATITUDE, LONGITUDE
+from app.database import init_db, save_drone_mission, get_drone_missions, save_drone_comparison
+from app.data_sources import drone, open_meteo, tempest, windy
+from app.comparisons import drone_comparison, station_comparison
+from app import charts
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "weather-compare-dev-key")
+
+
+@app.before_request
+def ensure_db():
+    init_db()
+
+
+# ---------- Dashboard ----------
+
+@app.route("/")
+def dashboard():
+    missions = get_drone_missions()
+    tempest_configured = tempest.is_configured()
+    return render_template("dashboard.html",
+                           missions=missions,
+                           tempest_configured=tempest_configured)
+
+
+# ---------- Drone Mission Routes ----------
+
+@app.route("/drone/upload", methods=["GET", "POST"])
+def drone_upload():
+    if request.method == "POST":
+        if "mission_file" not in request.files:
+            flash("No file selected", "error")
+            return redirect(request.url)
+
+        f = request.files["mission_file"]
+        if f.filename == "":
+            flash("No file selected", "error")
+            return redirect(request.url)
+
+        os.makedirs(MISSIONS_DIR, exist_ok=True)
+        filename = secure_filename(f.filename)
+        filepath = os.path.join(MISSIONS_DIR, filename)
+        f.save(filepath)
+
+        try:
+            df = drone.parse_mission_csv(filepath)
+            summary = drone.get_mission_summary(df)
+            mission_id = save_drone_mission(summary["mission"], filename, summary)
+            flash(f"Mission '{summary['mission']}' uploaded ({summary['total_readings']} readings, "
+                  f"max alt {summary['max_altitude_ft']:.0f}ft)", "success")
+            return redirect(url_for("drone_analyze", mission_id=mission_id))
+        except Exception as e:
+            flash(f"Error parsing CSV: {e}", "error")
+            traceback.print_exc()
+
+    return render_template("drone_upload.html")
+
+
+@app.route("/drone/<int:mission_id>")
+def drone_analyze(mission_id):
+    missions = get_drone_missions()
+    mission = next((m for m in missions if m["id"] == mission_id), None)
+    if not mission:
+        flash("Mission not found", "error")
+        return redirect(url_for("dashboard"))
+
+    filepath = os.path.join(MISSIONS_DIR, mission["filename"])
+    if not os.path.exists(filepath):
+        flash("Mission file not found on disk", "error")
+        return redirect(url_for("dashboard"))
+
+    try:
+        df = drone.parse_mission_csv(filepath)
+        summary = drone.get_mission_summary(df)
+        binned = drone.bin_by_altitude(df)
+        profile_df = drone.get_altitude_profile(df)
+
+        # Build flight profile chart
+        profile_chart = charts.drone_altitude_profile(profile_df)
+
+        # Fetch forecast data for the mission time window
+        mission_time = summary["start_time"]
+        forecast_models = open_meteo.get_forecast_for_time_range(
+            summary["start_time"], summary["end_time"],
+            lat=summary["latitude"], lon=summary["longitude"],
+        )
+
+        # If API unavailable, try loading from sample files
+        if not forecast_models:
+            samples_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "SAMPLES")
+            for sample_file in ["MODELS1", "MODELS2"]:
+                sample_path = os.path.join(samples_dir, sample_file)
+                if os.path.exists(sample_path):
+                    forecast_models.update(open_meteo.load_from_sample_file(sample_path))
+            if forecast_models:
+                flash("Using cached sample forecast data (API unavailable)", "warning")
+
+        # Compare drone data against each model
+        comparison_results = drone_comparison.compare_drone_to_forecasts(
+            binned, forecast_models, mission_time,
+        )
+
+        # Build comparison charts
+        temp_chart = charts.drone_vs_forecast_temp(comparison_results, binned)
+        wind_chart = charts.drone_vs_forecast_wind(comparison_results, binned)
+        humidity_chart = charts.drone_vs_forecast_humidity(comparison_results, binned)
+
+        # Score each model
+        scores = drone_comparison.compute_model_scores(comparison_results)
+        scores_chart = charts.model_scores_table(scores) if not scores.empty else None
+
+        # Save comparisons to DB
+        for model_name, data in comparison_results.items():
+            model_scores = scores[scores["model"] == model_name].to_dict("records")
+            model_score = model_scores[0] if model_scores else {}
+            save_drone_comparison(mission_id, model_name, data["comparison"], model_score)
+
+        return render_template("drone_analysis.html",
+                               mission=mission, summary=summary,
+                               profile_chart=profile_chart,
+                               temp_chart=temp_chart,
+                               wind_chart=wind_chart,
+                               humidity_chart=humidity_chart,
+                               scores_chart=scores_chart,
+                               scores=scores.to_dict("records") if not scores.empty else [])
+    except Exception as e:
+        flash(f"Analysis error: {e}", "error")
+        traceback.print_exc()
+        return redirect(url_for("dashboard"))
+
+
+# ---------- Station Comparison Routes ----------
+
+@app.route("/station")
+def station_view():
+    if not tempest.is_configured():
+        return render_template("station_setup.html")
+
+    try:
+        # Fetch Tempest observations
+        obs_df = tempest.get_observation_history(days_back=2)
+        if obs_df.empty:
+            flash("No Tempest observations available", "warning")
+            return render_template("station.html", has_data=False)
+
+        hourly = tempest.aggregate_hourly(obs_df)
+
+        # Fetch forecast models
+        forecast_models = open_meteo.fetch_all_models(past_days=2, forecast_days=1)
+
+        # Compare
+        results = station_comparison.compare_station_to_forecasts(hourly, forecast_models)
+        scores = station_comparison.compute_daily_scores(results)
+
+        # Build charts
+        temp_ts = charts.station_time_series(results, "temp")
+        wind_ts = charts.station_time_series(results, "wind")
+        humidity_ts = charts.station_time_series(results, "humidity")
+        temp_delta = charts.station_delta_chart(results, "temp")
+        wind_delta = charts.station_delta_chart(results, "wind")
+        scores_chart = charts.model_scores_table(scores) if not scores.empty else None
+
+        return render_template("station.html",
+                               has_data=True,
+                               temp_ts=temp_ts, wind_ts=wind_ts,
+                               humidity_ts=humidity_ts,
+                               temp_delta=temp_delta, wind_delta=wind_delta,
+                               scores_chart=scores_chart,
+                               scores=scores.to_dict("records") if not scores.empty else [])
+    except Exception as e:
+        flash(f"Station comparison error: {e}", "error")
+        traceback.print_exc()
+        return render_template("station.html", has_data=False)
+
+
+# ---------- Windy Data Entry Routes ----------
+
+@app.route("/windy", methods=["GET", "POST"])
+def windy_view():
+    if request.method == "POST":
+        try:
+            entry_data = _parse_windy_form(request)
+
+            # Handle screenshot upload
+            screenshot_path = None
+            if "screenshot" in request.files:
+                f = request.files["screenshot"]
+                if f.filename:
+                    os.makedirs(WINDY_DIR, exist_ok=True)
+                    fname = secure_filename(f.filename)
+                    screenshot_path = os.path.join(WINDY_DIR, fname)
+                    f.save(screenshot_path)
+
+            windy.save_windy_entry(entry_data, screenshot_path)
+            flash("Windy data saved", "success")
+            return redirect(url_for("windy_view"))
+        except Exception as e:
+            flash(f"Error saving Windy data: {e}", "error")
+            traceback.print_exc()
+
+    entries = windy.load_windy_entries()
+    return render_template("windy.html", entries=entries)
+
+
+@app.route("/windy/compare/<date>")
+def windy_compare(date):
+    """Compare Windy data against forecast models for a given date."""
+    windy_df = windy.get_windy_for_date(date)
+    if windy_df.empty:
+        flash("No Windy data found for this date", "warning")
+        return redirect(url_for("windy_view"))
+
+    # Fetch matching forecast data
+    forecast_models = open_meteo.fetch_all_models(past_days=2, forecast_days=1)
+
+    return render_template("windy_compare.html",
+                           date=date, windy_df=windy_df,
+                           forecast_models=forecast_models)
+
+
+def _parse_windy_form(req):
+    """Parse the Windy manual data entry form."""
+    date = req.form.get("date", "")
+    hours_str = req.form.get("hours", "")
+    hours = [int(h.strip()) for h in hours_str.split(",") if h.strip()]
+
+    altitudes = {}
+
+    # Surface level (33ft / ground level)
+    surface_data = {}
+    for metric in ["wind_speed_mph", "wind_gust_mph", "temp_f", "dewpoint_f", "humidity_pct"]:
+        vals = req.form.get(f"surface_{metric}", "")
+        if vals:
+            surface_data[metric] = [float(v.strip()) for v in vals.split(",") if v.strip()]
+    if surface_data:
+        altitudes["33ft"] = surface_data
+
+    # Altitude levels
+    for alt in [364, 1773, 2500, 3243, 4781, 6394]:
+        alt_data = {}
+        for metric in ["wind_speed_mph", "wind_dir"]:
+            vals = req.form.get(f"alt{alt}_{metric}", "")
+            if vals:
+                if metric == "wind_speed_mph":
+                    alt_data[metric] = [float(v.strip()) for v in vals.split(",") if v.strip()]
+                else:
+                    alt_data[metric] = [v.strip() for v in vals.split(",") if v.strip()]
+        if alt_data:
+            altitudes[f"{alt}ft"] = alt_data
+
+    return {"date": date, "hours": hours, "altitudes": altitudes}
+
+
+# ---------- API Endpoints ----------
+
+@app.route("/api/forecast")
+def api_forecast():
+    """Return current forecast data as JSON."""
+    try:
+        models = open_meteo.fetch_all_models()
+        result = {}
+        for name, df in models.items():
+            result[name] = json.loads(df.to_json(orient="records", date_format="iso"))
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    init_db()
+    app.run(debug=True, host="0.0.0.0", port=5000)

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Tempest Station Setup{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Tempest Weather Station Setup</h1>
+    <p>Connect your WeatherFlow Tempest station to enable daily forecast comparisons</p>
+</div>
+
+<div class="card">
+    <div class="setup-box">
+        <h2 style="margin-bottom: 16px;">Setup Instructions</h2>
+
+        <ol>
+            <li>
+                <strong>Get your Personal Access Token:</strong><br>
+                Go to <code>https://tempestwx.com/settings/tokens</code> and create a new token.
+            </li>
+            <li>
+                <strong>Find your Station ID:</strong><br>
+                In the Tempest app or web dashboard, your Station ID is in the URL or station settings.
+                It is a numeric ID (e.g., <code>12345</code>).
+            </li>
+            <li>
+                <strong>Find your Device ID:</strong><br>
+                Your Tempest device ID can be found in station settings under "Devices".
+                This is the specific Tempest unit ID (e.g., <code>67890</code>).
+            </li>
+            <li>
+                <strong>Set environment variables before starting the app:</strong>
+                <pre>export TEMPEST_TOKEN="your-token-here"
+export TEMPEST_STATION_ID="your-station-id"
+export TEMPEST_DEVICE_ID="your-device-id"</pre>
+            </li>
+            <li>
+                <strong>Restart the app</strong> and visit this page again.
+            </li>
+        </ol>
+
+        <h3 style="margin-top: 24px;">Alternative: Tempest UDP (Local Network)</h3>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">
+            If your Tempest is on the same local network, it broadcasts data via UDP on port 50222.
+            This is a future enhancement option for real-time local data without requiring internet.
+        </p>
+
+        <h3 style="margin-top: 24px;">Alternative: Webhook</h3>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">
+            WeatherFlow also supports webhooks that push observation data to a URL you specify.
+            Configure this in your Tempest app settings under "Integrations" to have data pushed
+            to this app automatically.
+        </p>
+    </div>
+</div>
+{% endblock %}
