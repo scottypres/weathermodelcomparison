@@ -224,6 +224,68 @@ def station_discover():
         return redirect(url_for("station_view"))
 
 
+@app.route("/station/debug")
+def station_debug():
+    """Show raw Tempest API data for debugging."""
+    from app.config import TEMPEST_TOKEN, TEMPEST_DEVICE_ID, TEMPEST_API_BASE
+    from datetime import timedelta
+    import json as json_mod
+
+    debug_info = {
+        "device_id": TEMPEST_DEVICE_ID,
+        "configured": tempest.is_configured(),
+    }
+
+    if tempest.is_configured():
+        try:
+            now = datetime.now(timezone.utc)
+            start = now - timedelta(hours=3)
+            resp = http_requests.get(
+                f"{TEMPEST_API_BASE}/observations/device/{TEMPEST_DEVICE_ID}",
+                params={
+                    "time_start": int(start.timestamp()),
+                    "time_end": int(now.timestamp()),
+                    "token": TEMPEST_TOKEN,
+                },
+                timeout=15,
+            )
+            resp.raise_for_status()
+            raw = resp.json()
+
+            debug_info["api_response_keys"] = list(raw.keys())
+            debug_info["type"] = raw.get("type", "unknown")
+            obs_list = raw.get("obs", [])
+            debug_info["obs_count"] = len(obs_list)
+            if obs_list:
+                debug_info["first_obs_raw"] = obs_list[0]
+                debug_info["first_obs_length"] = len(obs_list[0])
+                debug_info["last_obs_raw"] = obs_list[-1]
+                # Show what our parser thinks
+                sample = obs_list[-1]
+                debug_info["parsed_last"] = {
+                    "idx0_timestamp": sample[0] if len(sample) > 0 else None,
+                    "idx1_wind_lull": sample[1] if len(sample) > 1 else None,
+                    "idx2_wind_avg": sample[2] if len(sample) > 2 else None,
+                    "idx3_wind_gust": sample[3] if len(sample) > 3 else None,
+                    "idx4_wind_dir": sample[4] if len(sample) > 4 else None,
+                    "idx6_pressure": sample[6] if len(sample) > 6 else None,
+                    "idx7_temp_c": sample[7] if len(sample) > 7 else None,
+                    "idx7_temp_f": round(sample[7] * 9/5 + 32, 1) if len(sample) > 7 and sample[7] is not None else None,
+                    "idx8_humidity": sample[8] if len(sample) > 8 else None,
+                }
+
+            # Also show processed DataFrame
+            obs_df = tempest.get_observation_history(days_back=0.125)  # last 3 hours
+            if not obs_df.empty:
+                debug_info["processed_columns"] = list(obs_df.columns)
+                debug_info["processed_sample"] = obs_df.tail(3).to_dict("records")
+
+        except Exception as e:
+            debug_info["error"] = str(e)
+
+    return jsonify(debug_info)
+
+
 @app.route("/station")
 def station_view():
     if not tempest.is_configured():

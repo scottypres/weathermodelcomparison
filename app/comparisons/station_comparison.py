@@ -26,7 +26,10 @@ def compare_station_to_forecasts(station_hourly, forecast_models):
             continue
 
         fc = forecast_df.copy()
-        fc["hour_key"] = pd.to_datetime(fc["time"]).dt.tz_localize("UTC") if fc["time"].dt.tz is None else fc["time"].dt.floor("h")
+        fc_time = pd.to_datetime(fc["time"])
+        if fc_time.dt.tz is None:
+            fc_time = fc_time.dt.tz_localize("UTC")
+        fc["hour_key"] = fc_time.dt.floor("h")
 
         merged = pd.merge(station, fc, on="hour_key", how="inner", suffixes=("_obs", "_fc"))
         if merged.empty:
