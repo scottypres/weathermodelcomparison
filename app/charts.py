@@ -1,7 +1,5 @@
 """Plotly chart builders for weather comparison visualizations."""
 
-import json
-import plotly
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
@@ -9,7 +7,7 @@ import pandas as pd
 
 def to_json(fig):
     """Convert a Plotly figure to JSON for embedding in templates."""
-    return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    return fig.to_json()
 
 
 # ---------- Drone Mission Charts ----------
@@ -229,9 +227,12 @@ def station_time_series(comparison_results, metric="temp"):
     colors = ["#2196F3", "#4CAF50", "#FFC107", "#9C27B0", "#00BCD4"]
 
     for i, (model_name, comp) in enumerate(comparison_results.items()):
+        # Convert tz-aware timestamps to ISO strings for reliable Plotly.js rendering
+        time_strs = pd.to_datetime(comp["time"]).dt.strftime("%Y-%m-%dT%H:%M:%SZ").tolist()
+
         if not obs_plotted and cfg["obs_col"] in comp.columns:
             fig.add_trace(go.Scatter(
-                x=comp["time"], y=comp[cfg["obs_col"]],
+                x=time_strs, y=comp[cfg["obs_col"]].tolist(),
                 mode="lines+markers",
                 name="Tempest Station",
                 line=dict(color="#FF5722", width=3),
@@ -242,7 +243,7 @@ def station_time_series(comparison_results, metric="temp"):
         if cfg["fc_col"] in comp.columns:
             color = colors[i % len(colors)]
             fig.add_trace(go.Scatter(
-                x=comp["time"], y=comp[cfg["fc_col"]],
+                x=time_strs, y=comp[cfg["fc_col"]].tolist(),
                 mode="lines",
                 name=model_name,
                 line=dict(color=color, width=2, dash="dash"),
@@ -275,9 +276,11 @@ def station_delta_chart(comparison_results, metric="temp"):
 
     for i, (model_name, comp) in enumerate(comparison_results.items()):
         if col in comp.columns:
+            # Convert tz-aware timestamps to ISO strings for reliable Plotly.js rendering
+            time_strs = pd.to_datetime(comp["time"]).dt.strftime("%Y-%m-%dT%H:%M:%SZ").tolist()
             color = colors[i % len(colors)]
             fig.add_trace(go.Bar(
-                x=comp["time"], y=comp[col],
+                x=time_strs, y=comp[col].tolist(),
                 name=model_name,
                 marker_color=color, opacity=0.7,
             ))

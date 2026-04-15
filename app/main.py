@@ -342,6 +342,10 @@ def station_view():
 
         # Compare
         results = station_comparison.compare_station_to_forecasts(hourly, forecast_models)
+        if not results:
+            flash("No matching forecast data found. Open-Meteo API may be unavailable.", "warning")
+            return render_template("station.html", has_data=False)
+
         scores = station_comparison.compute_daily_scores(results)
 
         # Build charts
