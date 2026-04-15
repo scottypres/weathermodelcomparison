@@ -7,6 +7,16 @@
     <p>Connect your WeatherFlow Tempest station to enable daily forecast comparisons</p>
 </div>
 
+{% if has_token %}
+<div class="card" style="border-color: var(--accent-green);">
+    <h2>Token Detected</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 16px;">
+        Your Tempest API token is configured. Click below to auto-discover your station and device IDs.
+    </p>
+    <a href="{{ url_for('station_discover') }}" class="btn btn-primary">Auto-Discover Station</a>
+</div>
+{% endif %}
+
 <div class="card">
     <div class="setup-box">
         <h2 style="margin-bottom: 16px;">Setup Instructions</h2>

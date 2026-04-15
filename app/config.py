@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Location (from your sample data — Royal Palm Beach, FL area)
 LATITUDE = 26.8065

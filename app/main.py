@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from werkzeug.utils import secure_filename
 import pandas as pd
+import requests as http_requests
 
 from app.config import MISSIONS_DIR, WINDY_DIR, LATITUDE, LONGITUDE
 from app.database import init_db, save_drone_mission, get_drone_missions, save_drone_comparison
@@ -143,10 +144,81 @@ def drone_analyze(mission_id):
 
 # ---------- Station Comparison Routes ----------
 
+@app.route("/station/discover")
+def station_discover():
+    """Auto-discover Tempest station and device IDs from the API token."""
+    from app.config import TEMPEST_TOKEN, TEMPEST_API_BASE
+    if not TEMPEST_TOKEN:
+        flash("Set TEMPEST_TOKEN in .env first", "error")
+        return redirect(url_for("station_view"))
+    try:
+        resp = http_requests.get(
+            f"{TEMPEST_API_BASE}/stations",
+            params={"token": TEMPEST_TOKEN},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        stations = data.get("stations", [])
+        if not stations:
+            flash("No stations found for this token", "warning")
+            return redirect(url_for("station_view"))
+
+        # Auto-pick the first station
+        station = stations[0]
+        station_id = station.get("station_id")
+        devices = station.get("devices", [])
+        device_id = devices[0].get("device_id") if devices else ""
+        station_name = station.get("name", "Unknown")
+
+        # Update .env file
+        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+        lines = []
+        if os.path.exists(env_path):
+            with open(env_path) as f:
+                lines = f.readlines()
+
+        new_lines = []
+        keys_written = set()
+        for line in lines:
+            if line.startswith("TEMPEST_STATION_ID="):
+                new_lines.append(f"TEMPEST_STATION_ID={station_id}\n")
+                keys_written.add("TEMPEST_STATION_ID")
+            elif line.startswith("TEMPEST_DEVICE_ID="):
+                new_lines.append(f"TEMPEST_DEVICE_ID={device_id}\n")
+                keys_written.add("TEMPEST_DEVICE_ID")
+            else:
+                new_lines.append(line)
+        if "TEMPEST_STATION_ID" not in keys_written:
+            new_lines.append(f"TEMPEST_STATION_ID={station_id}\n")
+        if "TEMPEST_DEVICE_ID" not in keys_written:
+            new_lines.append(f"TEMPEST_DEVICE_ID={device_id}\n")
+
+        with open(env_path, "w") as f:
+            f.writelines(new_lines)
+
+        # Update running config
+        import app.config as cfg
+        cfg.TEMPEST_STATION_ID = str(station_id)
+        cfg.TEMPEST_DEVICE_ID = str(device_id)
+        os.environ["TEMPEST_STATION_ID"] = str(station_id)
+        os.environ["TEMPEST_DEVICE_ID"] = str(device_id)
+
+        flash(f"Found station '{station_name}' (ID: {station_id}, Device: {device_id}). "
+              f".env updated — station comparison is now active!", "success")
+        return redirect(url_for("station_view"))
+
+    except Exception as e:
+        flash(f"Discovery failed: {e}", "error")
+        return redirect(url_for("station_view"))
+
+
 @app.route("/station")
 def station_view():
     if not tempest.is_configured():
-        return render_template("station_setup.html")
+        return render_template("station_setup.html",
+                               has_token=bool(os.environ.get("TEMPEST_TOKEN") or
+                                              __import__('app.config', fromlist=['TEMPEST_TOKEN']).TEMPEST_TOKEN))
 
     try:
         # Fetch Tempest observations
