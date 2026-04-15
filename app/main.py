@@ -274,11 +274,46 @@ def station_debug():
                     "idx8_humidity": sample[8] if len(sample) > 8 else None,
                 }
 
-            # Also show processed DataFrame
-            obs_df = tempest.get_observation_history(days_back=0.125)  # last 3 hours
+            # Show processed station DataFrame
+            obs_df = tempest.get_observation_history(days_back=0.125)
             if not obs_df.empty:
+                hourly = tempest.aggregate_hourly(obs_df)
                 debug_info["processed_columns"] = list(obs_df.columns)
                 debug_info["processed_sample"] = obs_df.tail(3).to_dict("records")
+                debug_info["hourly_sample"] = hourly.tail(3).to_dict("records")
+                debug_info["hourly_columns"] = list(hourly.columns)
+
+            # Show forecast data for comparison
+            try:
+                forecast_models = open_meteo.fetch_all_models(past_days=2, forecast_days=1)
+                fc_debug = {}
+                for model_name, df in forecast_models.items():
+                    fc_debug[model_name] = {
+                        "columns": list(df.columns),
+                        "rows": len(df),
+                        "sample_last3": df.tail(3)[["time", "temperature_2m", "wind_speed_10m", "relative_humidity_2m"]].to_dict("records") if "temperature_2m" in df.columns else "no temp col",
+                    }
+                debug_info["forecast_models"] = fc_debug
+            except Exception as e:
+                debug_info["forecast_error"] = str(e)
+
+            # Run actual comparison and show the merged output
+            try:
+                obs_full = tempest.get_observation_history(days_back=2)
+                if not obs_full.empty:
+                    hourly_full = tempest.aggregate_hourly(obs_full)
+                    forecast_models = open_meteo.fetch_all_models(past_days=2, forecast_days=1)
+                    results = station_comparison.compare_station_to_forecasts(hourly_full, forecast_models)
+                    comp_debug = {}
+                    for model_name, comp_df in results.items():
+                        comp_debug[model_name] = {
+                            "columns": list(comp_df.columns),
+                            "rows": len(comp_df),
+                            "sample": comp_df.head(5).to_dict("records"),
+                        }
+                    debug_info["comparison_output"] = comp_debug
+            except Exception as e:
+                debug_info["comparison_error"] = str(e)
 
         except Exception as e:
             debug_info["error"] = str(e)
