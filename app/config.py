@@ -16,6 +16,9 @@ TEMPEST_STATION_ID = os.environ.get("TEMPEST_STATION_ID", "")
 TEMPEST_DEVICE_ID = os.environ.get("TEMPEST_DEVICE_ID", "")
 TEMPEST_API_BASE = "https://swd.weatherflow.com/swd/rest"
 
+# Anthropic API (for Windy screenshot OCR via Claude Vision)
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
 # Forecast models to compare
 # Group 1: Global models (MODELS1-style)
 GLOBAL_MODELS = ["ecmwf_ifs", "icon_seamless", "gem_seamless", "gfs_seamless"]

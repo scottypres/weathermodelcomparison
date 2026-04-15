@@ -12,7 +12,7 @@ import requests as http_requests
 
 from app.config import MISSIONS_DIR, WINDY_DIR, LATITUDE, LONGITUDE
 from app.database import init_db, save_drone_mission, get_drone_missions, save_drone_comparison
-from app.data_sources import drone, open_meteo, tempest, windy
+from app.data_sources import drone, open_meteo, tempest, windy, windy_ocr
 from app.comparisons import drone_comparison, station_comparison
 from app import charts
 
@@ -263,9 +263,9 @@ def station_view():
 def windy_view():
     if request.method == "POST":
         try:
-            entry_data = _parse_windy_form(request)
+            # Check if this is an OCR upload or manual entry
+            use_ocr = request.form.get("use_ocr") == "1"
 
-            # Handle screenshot upload
             screenshot_path = None
             if "screenshot" in request.files:
                 f = request.files["screenshot"]
@@ -275,15 +275,28 @@ def windy_view():
                     screenshot_path = os.path.join(WINDY_DIR, fname)
                     f.save(screenshot_path)
 
-            windy.save_windy_entry(entry_data, screenshot_path)
-            flash("Windy data saved", "success")
+            if use_ocr and screenshot_path:
+                # Extract data from screenshot via Claude Vision
+                entry_data = windy_ocr.extract_from_image(screenshot_path)
+                entry_data["screenshot"] = screenshot_path
+                windy.save_windy_entry(entry_data, screenshot_path)
+                n_alts = len(entry_data.get("altitudes", {}))
+                n_hours = len(entry_data.get("hours", []))
+                flash(f"Extracted data from screenshot: {n_alts} altitude levels, "
+                      f"{n_hours} hours ({entry_data.get('date', 'unknown date')})", "success")
+            else:
+                entry_data = _parse_windy_form(request)
+                windy.save_windy_entry(entry_data, screenshot_path)
+                flash("Windy data saved", "success")
+
             return redirect(url_for("windy_view"))
         except Exception as e:
-            flash(f"Error saving Windy data: {e}", "error")
+            flash(f"Error: {e}", "error")
             traceback.print_exc()
 
     entries = windy.load_windy_entries()
-    return render_template("windy.html", entries=entries)
+    ocr_available = windy_ocr.is_configured()
+    return render_template("windy.html", entries=entries, ocr_available=ocr_available)
 
 
 @app.route("/windy/compare/<date>")
