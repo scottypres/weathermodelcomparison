@@ -168,8 +168,19 @@ def station_discover():
         station = stations[0]
         station_id = station.get("station_id")
         devices = station.get("devices", [])
-        device_id = devices[0].get("device_id") if devices else ""
         station_name = station.get("name", "Unknown")
+
+        # Find the Tempest device (type "ST") — not the hub
+        device_id = ""
+        for dev in devices:
+            if dev.get("device_type") == "ST":
+                device_id = dev.get("device_id", "")
+                break
+        # Fallback to first device if no ST found
+        if not device_id and devices:
+            device_id = devices[0].get("device_id", "")
+
+        device_info = [f"{d.get('device_type','?')}:{d.get('device_id','?')}" for d in devices]
 
         # Update .env file
         env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -204,8 +215,8 @@ def station_discover():
         os.environ["TEMPEST_STATION_ID"] = str(station_id)
         os.environ["TEMPEST_DEVICE_ID"] = str(device_id)
 
-        flash(f"Found station '{station_name}' (ID: {station_id}, Device: {device_id}). "
-              f".env updated — station comparison is now active!", "success")
+        flash(f"Found station '{station_name}' (Station: {station_id}, Device: {device_id}, "
+              f"All devices: {device_info}). .env updated!", "success")
         return redirect(url_for("station_view"))
 
     except Exception as e:

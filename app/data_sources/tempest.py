@@ -12,7 +12,7 @@ from app.config import TEMPEST_TOKEN, TEMPEST_STATION_ID, TEMPEST_DEVICE_ID, TEM
 
 def is_configured():
     """Check if Tempest API credentials are set."""
-    return bool(TEMPEST_TOKEN and TEMPEST_STATION_ID)
+    return bool(TEMPEST_TOKEN and TEMPEST_STATION_ID and TEMPEST_DEVICE_ID)
 
 
 def _headers():
@@ -49,9 +49,12 @@ def get_observation_history(days_back=2):
     end_epoch = int(now.timestamp())
 
     # Use the observations endpoint for device history
-    device_id = TEMPEST_DEVICE_ID or TEMPEST_STATION_ID
+    if not TEMPEST_DEVICE_ID:
+        print("[tempest] TEMPEST_DEVICE_ID not set — run Auto-Discover on the Station page")
+        return pd.DataFrame()
+
     resp = requests.get(
-        f"{TEMPEST_API_BASE}/observations/device/{device_id}",
+        f"{TEMPEST_API_BASE}/observations/device/{TEMPEST_DEVICE_ID}",
         params={
             "time_start": start_epoch,
             "time_end": end_epoch,
