@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Upload Drone Mission{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Upload Drone Mission</h1>
+    <p>Upload a mission CSV from your weather drone to compare against forecast models</p>
+</div>
+
+<div class="card" style="max-width: 600px;">
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="mission_file">Mission CSV File</label>
+            <input type="file" name="mission_file" id="mission_file" accept=".csv">
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 20px;">
+            Expected format: CSV with columns including timestamp, altitude_ft, sht41_temp_c,
+            sht41_humidity_pct, sdp811_wind_mph, bmp390l_pressure_hpa, etc.
+        </p>
+        <button type="submit" class="btn btn-primary">Upload &amp; Analyze</button>
+    </form>
+</div>
+
+{% if missions is defined and missions %}
+<div class="card">
+    <h2>Previous Missions</h2>
+    <div class="mission-list">
+        {% for m in missions %}
+        <a href="{{ url_for('drone_analyze', mission_id=m.id) }}">
+            <strong>{{ m.mission_name }}</strong>
+            <div class="meta">
+                {{ m.filename }} &middot;
+                Max {{ m.max_altitude_ft|round|int }}ft &middot;
+                {{ m.total_readings }} readings &middot;
+                {{ m.upload_time[:10] }}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

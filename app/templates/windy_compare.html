@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Windy Comparison - {{ date }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Windy vs Forecast Models: {{ date }}</h1>
+    <p>Comparison of Windy screenshot data against Open-Meteo forecast models</p>
+</div>
+
+<div class="card">
+    <h2>Windy Data</h2>
+    {% if windy_df is not none and windy_df|length > 0 %}
+    <table>
+        <thead>
+            <tr>
+                <th>Hour</th>
+                <th>Altitude (ft)</th>
+                <th>Wind Speed (mph)</th>
+                <th>Temp (F)</th>
+                <th>Humidity (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for _, row in windy_df.iterrows() %}
+            <tr>
+                <td>{{ row.get('hour', '') }}</td>
+                <td>{{ row.get('altitude_ft', '') }}</td>
+                <td>{{ row.get('wind_speed_mph', '') }}</td>
+                <td>{{ row.get('temp_f', '') }}</td>
+                <td>{{ row.get('humidity_pct', '') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: var(--text-secondary);">No Windy data available for this date.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Forecast Model Data</h2>
+    <p style="color: var(--text-secondary); font-size: 0.9rem;">
+        Forecast data from Open-Meteo models for the same time period.
+        Compare values at matching altitude levels.
+    </p>
+    {% for model_name, df in forecast_models.items() %}
+    <h3 style="margin-top: 16px;">{{ model_name }}</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Temp 2m (F)</th>
+                <th>Wind 10m (mph)</th>
+                <th>Wind 80m (mph)</th>
+                <th>Humidity 2m (%)</th>
+                <th>Gusts 10m (mph)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for _, row in df.iterrows() %}
+            {% if loop.index0 < 24 %}
+            <tr>
+                <td>{{ row.get('time', '') }}</td>
+                <td>{{ "%.1f"|format(row.get('temperature_2m', 0)) if row.get('temperature_2m') is not none else '' }}</td>
+                <td>{{ "%.1f"|format(row.get('wind_speed_10m', 0)) if row.get('wind_speed_10m') is not none else '' }}</td>
+                <td>{{ "%.1f"|format(row.get('wind_speed_80m', 0)) if row.get('wind_speed_80m') is not none else '' }}</td>
+                <td>{{ row.get('relative_humidity_2m', '') }}</td>
+                <td>{{ "%.1f"|format(row.get('wind_gusts_10m', 0)) if row.get('wind_gusts_10m') is not none else '' }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endfor %}
+</div>
+{% endblock %}

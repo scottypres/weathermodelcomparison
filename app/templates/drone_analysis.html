@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ mission.mission_name }} Analysis{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Mission: {{ mission.mission_name }}</h1>
+    <p>{{ mission.filename }} &mdash; uploaded {{ mission.upload_time[:16] }}</p>
+</div>
+
+<!-- Mission Stats -->
+<div class="stats">
+    <div class="stat">
+        <div class="label">Max Altitude</div>
+        <div class="value blue">{{ summary.max_altitude_ft|round|int }}ft</div>
+    </div>
+    <div class="stat">
+        <div class="label">Duration</div>
+        <div class="value green">{{ summary.duration_seconds|round|int }}s</div>
+    </div>
+    <div class="stat">
+        <div class="label">Readings</div>
+        <div class="value">{{ summary.total_readings }}</div>
+    </div>
+    <div class="stat">
+        <div class="label">Start (UTC)</div>
+        <div class="value" style="font-size: 1rem;">{{ summary.start_time.strftime('%Y-%m-%d %H:%M') if summary.start_time else 'N/A' }}</div>
+    </div>
+    <div class="stat">
+        <div class="label">Location</div>
+        <div class="value" style="font-size: 1rem;">{{ "%.4f"|format(summary.latitude) }}, {{ "%.4f"|format(summary.longitude) }}</div>
+    </div>
+</div>
+
+<!-- Flight Profile -->
+<div class="card">
+    <h2>Flight Profile</h2>
+    <div class="chart-container" id="profile-chart"></div>
+</div>
+
+<!-- Model Comparison Charts -->
+<div class="grid-2">
+    <div class="card">
+        <h2>Temperature vs Altitude</h2>
+        <div class="chart-container" id="temp-chart"></div>
+    </div>
+    <div class="card">
+        <h2>Wind Speed vs Altitude</h2>
+        <div class="chart-container" id="wind-chart"></div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Humidity vs Altitude</h2>
+    <div class="chart-container" id="humidity-chart"></div>
+</div>
+
+<!-- Model Accuracy Scores -->
+{% if scores %}
+<div class="card">
+    <h2>Model Accuracy Scores (lower = better)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Model</th>
+                <th>Temp MAE (F)</th>
+                <th>Temp RMSE (F)</th>
+                <th>Wind MAE (mph)</th>
+                <th>Wind RMSE (mph)</th>
+                <th>Humidity MAE (%)</th>
+                <th>Humidity RMSE (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in scores %}
+            <tr>
+                <td><strong>{{ s.model }}</strong></td>
+                <td>{{ "%.2f"|format(s.get('temp_mae_f', 0)) }}</td>
+                <td>{{ "%.2f"|format(s.get('temp_rmse_f', 0)) }}</td>
+                <td>{{ "%.2f"|format(s.get('wind_mae_mph', 0)) }}</td>
+                <td>{{ "%.2f"|format(s.get('wind_rmse_mph', 0)) }}</td>
+                <td>{{ "%.2f"|format(s.get('humidity_mae_pct', 0)) }}</td>
+                <td>{{ "%.2f"|format(s.get('humidity_rmse_pct', 0)) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var charts = {
+        'profile-chart': {{ profile_chart|safe }},
+        'temp-chart': {{ temp_chart|safe }},
+        'wind-chart': {{ wind_chart|safe }},
+        'humidity-chart': {{ humidity_chart|safe }},
+    };
+    for (var id in charts) {
+        var fig = charts[id];
+        Plotly.newPlot(id, fig.data, fig.layout, {responsive: true});
+    }
+})();
+</script>
+{% endblock %}
